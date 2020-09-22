@@ -73,6 +73,8 @@ Client::Client(QWidget *parent):
     connect(disconnect,&QPushButton::clicked,this,&Client::onDisconnectClick);
     connect(close,&QPushButton::clicked,this,[this](){this->close();});
     connect(txtInput, SIGNAL(returnPressed()),this, SLOT(slotSendToServer()));    
+	
+	lineReceive = new QLineEdit(this);
     //Layout setup
     QVBoxLayout* pvbxLayout = new QVBoxLayout;
     pvbxLayout->addWidget(new QLabel("<H1>Client</H1>"));
@@ -86,6 +88,7 @@ Client::Client(QWidget *parent):
     pvbxLayout->addWidget(lineIP);
     pvbxLayout->addWidget(labPort);
     pvbxLayout->addWidget(linePort);
+	pvbxLayout->addWidget(lineReceive);
     setLayout(pvbxLayout);
 }
 
@@ -112,24 +115,30 @@ void Client::onDisconnectClick()
 void Client::slotReadyRead()
 {
     QDataStream in(tcpSocket);
-    in.setVersion(QDataStream::Qt_5_13);
+    in.setVersion(QDataStream::Qt_5_12);
     for (;;) {
-        if ( !nextBlockSize) //nextBlockSize=0
+        if ( !nextBlockSize) //nextBlockSize==0 condition of first packet
         {
-            if (tcpSocket->bytesAvailable() < sizeof(quint16)) // если меньше двух байтов
+            if (tcpSocket->bytesAvailable() < sizeof(quint16)) // если пришло меньше двух байтов
             {
                 break; //выходим из бесконечного цикла
             }
-            in >> nextBlockSize;
+            in >> nextBlockSize; //take sizeof received data  (Каждый переданный сокетом блок начинается полем размера блока.)
         }
-        if (tcpSocket->bytesAvailable() < nextBlockSize)
+        if (tcpSocket->bytesAvailable() < nextBlockSize) //if quantity of received bytes is smaller than in header
         {
             break;
         }
-        QTime time;
-        QString str;
-        in >> time >> str;
-        txtInfo->append(time.toString() +" "+ str);
+		QByteArray bufReceive;
+        //QTime time;
+        //QString str;
+        in >> bufReceive;//time >> str;
+        //txtInfo->append(time.toString() +" "+ str);
+		uint32_t val;
+		for(auto i:bufReceive){
+			val+=bufReceive[i]<<i*4;
+		}
+		lineReceive->setText(QString::number(val));
         nextBlockSize = 0;
     }
 }
@@ -150,8 +159,8 @@ void Client::slotSendToServer()
 {
     QByteArray arrBlock;
     QDataStream out(&arrBlock, QIODevice::WriteOnly);
-    out.setVersion(QDataStream::Qt_5_13);
-    out << quint16(0) << QTime::currentTime() << txtInput->text();
+    out.setVersion(QDataStream::Qt_5_12);
+    out << quint16(0) << txtInput->text(); //sets in first byte data length //<< QTime::currentTime() 
     out.device()->seek(0);
     out << quint16(arrBlock.size() - sizeof(quint16));
     tcpSocket->write(arrBlock);

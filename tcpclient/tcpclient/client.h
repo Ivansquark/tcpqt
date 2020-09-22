@@ -89,6 +89,7 @@ private:
     QLabel* labIP{nullptr};
     QLabel* labPort{nullptr};
     QLineEdit* linePort{nullptr};
+	QLineEdit* lineReceive{nullptr};
 
     QTcpSocket *tcpSocket = nullptr;
     QTextEdit* txtInfo = nullptr;
