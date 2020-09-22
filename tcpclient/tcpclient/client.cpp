@@ -78,6 +78,7 @@ Client::Client(QWidget *parent):
     //Layout setup
     QVBoxLayout* pvbxLayout = new QVBoxLayout;
     pvbxLayout->addWidget(new QLabel("<H1>Client</H1>"));
+    pvbxLayout->addWidget(lineReceive);
     pvbxLayout->addWidget(txtInfo);
     pvbxLayout->addWidget(txtInput);
     pvbxLayout->addWidget(pcmd);
@@ -88,7 +89,7 @@ Client::Client(QWidget *parent):
     pvbxLayout->addWidget(lineIP);
     pvbxLayout->addWidget(labPort);
     pvbxLayout->addWidget(linePort);
-	pvbxLayout->addWidget(lineReceive);
+
     setLayout(pvbxLayout);
 }
 
@@ -116,31 +117,15 @@ void Client::slotReadyRead()
 {
     QDataStream in(tcpSocket);
     in.setVersion(QDataStream::Qt_5_12);
-    for (;;) {
-        if ( !nextBlockSize) //nextBlockSize==0 condition of first packet
-        {
-            if (tcpSocket->bytesAvailable() < sizeof(quint16)) // если пришло меньше двух байтов
-            {
-                break; //выходим из бесконечного цикла
-            }
-            in >> nextBlockSize; //take sizeof received data  (Каждый переданный сокетом блок начинается полем размера блока.)
-        }
-        if (tcpSocket->bytesAvailable() < nextBlockSize) //if quantity of received bytes is smaller than in header
-        {
-            break;
-        }
-		QByteArray bufReceive;
-        //QTime time;
-        //QString str;
-        in >> bufReceive;//time >> str;
-        //txtInfo->append(time.toString() +" "+ str);
-		uint32_t val;
-		for(auto i:bufReceive){
-			val+=bufReceive[i]<<i*4;
-		}
-		lineReceive->setText(QString::number(val));
-        nextBlockSize = 0;
+    uint16_t count = tcpSocket->bytesAvailable();
+    QByteArray bufReceive;
+    for(uint8_t i=0;i<count;i++){
+        uint8_t byte; in>>byte;bufReceive.append(byte);
     }
+    qDebug()<<bufReceive;
+    uint32_t val = (bufReceive[0]<<24)|(bufReceive[1]<<16)|(bufReceive[2]<<8)|(bufReceive[3]);
+    lineReceive->setText(QString::number(val));
+    nextBlockSize = 0;
 }
 
 void Client::slotError(QAbstractSocket::SocketError err)
