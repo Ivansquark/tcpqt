@@ -87,45 +87,23 @@ void Server::slotReadClient()
 {
     /*!Returns a pointer to the object that sent the signal,
         if called in a slot activated by a signal; otherwise it returns nullptr.*/
-    QTcpSocket* pClientSocket = static_cast<QTcpSocket*>(sender()); //данные пришли
+    QTcpSocket* pClientSocket = static_cast<QTcpSocket*>(QObject::sender()); //данные пришли
     QDataStream in(pClientSocket);
-    in.setVersion(QDataStream::Qt_5_13);
-
-    qDebug()<<in;
-    qDebug()<<pClientSocket->bytesAvailable();
-    qDebug()<<pClientSocket->socketType();
-    qDebug()<<pClientSocket->socketType();
-    for (;;) //читаем все блоки. не все высланные клиентом данные могут прийти одновременно.
-    {
-        if (!nextBlockSize ) //Каждый переданный сокетом блок начинается полем размера блока.
-        {
-            if (pClientSocket->bytesAvailable() < sizeof(quint16)) //если меньше двух выходим
-            {
-                break;
-            }
-            in>>nextBlockSize;
-        }
-        if (pClientSocket->bytesAvailable() < nextBlockSize)
-        {
-            break;
-        }
-        QTime time;
-        QString str;
-        in >> time >> str;
-        QString strMessage = time.toString() + " " + "Client has sent - " + str;
-        m_ptxt->append(strMessage);
-        nextBlockSize = 0;
-        sendToClient(pClientSocket,"Server Response: Received \"" + str + "\""); //отправляем обратно данные в сокет
+    in.setVersion(QDataStream::Qt_5_12);
+    QByteArray receivedBuf;
+    for(uint8_t i=0;i<pClientSocket->bytesAvailable();i++) {
+        in>>receivedBuf;
     }
+    QString strMessage = receivedBuf;
+    m_ptxt->append(strMessage);
+    sendToClient(pClientSocket,"1"); //отправляем обратно данные в сокет
 }
 
 void Server::sendToClient(QTcpSocket *pSocket, const QString &str) //формируем данные, которые будут отосланы клиенту
 {
     QByteArray arrBlock; //выделяем блок байтов
     QDataStream out(&arrBlock, QIODevice::WriteOnly); //записываем все данные блока в arrBlock
-    out.setVersion(QDataStream::Qt_5_13);
-    out << quint16(0) << QTime::currentTime() << str;// причем вместо реального размера записываем О.
-    out.device()->seek(0); //указатель на начало блока
-    //out << quint16(arrBlock.size() - sizeof(quint16));
+    out.setVersion(QDataStream::Qt_5_12);
+    out << str;// причем вместо реального размера записываем О.
     pSocket->write(arrBlock); //блок записывается в сокет
 }
